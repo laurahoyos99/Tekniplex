@@ -2,13 +2,12 @@ with
 all_fields as(
 SELECT DISTINCT entity, "Integrated Performance Solutions" as Business_Unit
 ,case when entity in(114,115) then 'Dispensing' else 'Sealing' end as Main_Business_Line,2023 as FY
-,date_add(date(concat(20,left(safe_cast(transaction_date as string),2),'-',right(safe_cast(transaction_date as string),2),'-','01')), interval -6 month) as transaction_date
-,CUSTOMER_ID, customer_name,Customer_Group_Master_Account as cust_group,customer_location
-,SKU,Unit_of_Measurement,product__description,product__class,product_type,Primary_Substrate_,end_market
+,date_add(date(concat(20,left(safe_cast(transaction_date as string),2),'-',right(safe_cast(transaction_date as string),2),'-','01')), interval -6 month) as transaction_date,CUSTOMER_ID, customer_name,Customer_Group_Master_Account as cust_group,customer_location,SKU,Unit_of_Measurement,product__description,product__class,product_type,Primary_Substrate_,end_market
 ,case when entity in(114,115) then 'Dispensing' else 'Sealing' end as product_line
 ,sum(Sales_Amount) as sales
-, sum(safe_cast(quantity_f as float64)) as quantity_f
-, sum(Standard_Cost) as Standard_Cost, sum(Standard_Labor) as Standard_Labor,sum(Standard_Material) as Standard_Material,sum(Standard_OH) as Standard_OH
+,sum(safe_cast(quantity_f as float64)) as quantity_f
+,sum(Standard_Cost) as Standard_Cost, sum(Standard_Labor) as Standard_Labor,sum(Standard_Material) as Standard_Material,sum(Standard_OH) as Standard_OH
+,sum(safe_cast(Discount_Rebate_Amount as float64)) as discount,sum(safe_cast(Return_Tagging as float64)) as Return_Tagging
 from(select *
 ,case when quantity like '%(%' then concat('-',right(left(quantity,length(quantity)-1),length(quantity)-3))
 when quantity='-' then '0' 
@@ -76,10 +75,18 @@ select distinct entity,business_unit,main_business_line,fy,transaction_date
 ,null as End_Market_Homologated
 ,unit_of_measurement as un_of_measurement
 ,null as Intercompany_Transaction_Tagging
-,sum(quantity) as quantity,sum(Sales) as sales,sum(Standard_Cost) as Standard_Cost, sum(Standard_Labor) as Standard_Labor,sum(Standard_Material) as Standard_Material,sum(Standard_OH) as Standard_OH
+,sum(quantity) as quantity,sum(Sales) as sales,sum(Standard_Cost) as Costs
+,sum(Standard_Material) as raw_material
+,sum(Standard_Labor) as operating_cost_incl_dl
+,sum(Standard_OH) as indirect_cost_incl_oh
+,sum(sales) as sales_w_discount
+,null as costs_pr
+,null as raw_material_pr
+,null as operating_cost_incl_dl_pr
+,null as indirect_cost_incl_oh_pr
+,null as discount_pr
+,null as Return_Tagging
 from nulls_fixed
 --limit 10
 group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22
 order by 1--,2
-
---*/
