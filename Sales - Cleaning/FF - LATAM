@@ -1,0 +1,75 @@
+with all_fields as(
+select distinct
+entity as entity_code,
+case when entity = 5101 then '5101 - MD'
+    when entity = 5250 then '5250 - PPC'
+        end as entity_name,
+business_unit,
+case when entity = 5101 then 'Plastic/paper'
+    when entity = 5250 then 'Plastic'
+        end as Plant_Business_main_line,
+transaction_date,FY,Year,_Month as Month,Customer_ID,Customer_name,Customer_location,Customer_Group_Master_Account as cust_group,SKU,product__description as sku_description,'' as product_line,Product__class as product_class,Product_type,primary_substrate_ as primary_substrate,end_market,Intercompany_Transaction_Tagging,Trim(upper(Unit_of_Measurement)) as un_of_measurement,
+SUM(quantity) AS quantity,SUM(Sales_Amount) AS sales,Sum(Standard_Cost) AS Standard_Cost,  SUM(Cost_Raw_Material) AS Standard_Material,SUM(Direct_labor) AS Standard_Labor,SUM(Indirect_Cost) AS Standard_OH,sum(Discount_Rebate_Amount) as discount_rebate,sum(Return_Tagging) as return_tagging,sum(Variations_Raw_Material) as variation_RM,sum(Variations_Raw_Operation) as variation_RO
+,case when year = 2022 and _month = 5 then 0.0002572
+      when year = 2022 and _month = 6 then 0.0002572
+      when year = 2022 and _month = 7 then 0.0002287
+      when year = 2022 and _month = 8 then 0.00023
+      when year = 2022 and _month = 9 then 0.0002284
+      when year = 2022 and _month = 10 then 0.0002239
+      when year = 2022 and _month = 11 then 0.0002194
+      when year = 2022 and _month = 12 then 0.0002175
+      when year = 2023 and _month = 1 then 0.0002168
+      when year = 2023 and _month = 2 then 0.0002157
+      when year = 2023 and _month = 3 then 0.000215
+      end as TC
+ FROM `responsive-gist-387019.tekniplex.24052023_FY_2023_MD_PPC`
+ group by 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21
+ order by 1
+)
+,final_md_ppc as(
+  select entity_code,entity_name,Plant_Business_main_line,FY,Year,Month,transaction_date
+  --,date(concat(year,'-',lpad(safe_cast(month as string),2,'0'),'-','01')) as transaction_date
+,Customer_ID,Customer_Name,Customer_Location,cust_group,SKU,sku_description,'' as Product_line,product_class,Product_Type,primary_substrate,End_Market,'' as Product_Class_Homologated,'N/A' as Product_Type_Homologated,'' as Primary_Substrate_Homologated,'' as End_Market_Homologated,Intercompany_Transaction_Tagging,Un_of_Measurement as UN_of_measurement,round(Quantity,2) as quantity,null as Sum_of_units,null as Kg_sales,
+round((sales*tc),2) as Sales_USD,
+Round((COALESCE(Standard_material*tc, 0) + COALESCE(standard_labor*tc, 0) + COALESCE(standard_OH*tc, 0) ),2) as sum_of_costs_USD,
+Round((standard_material*tc),2) as Raw_Material_USD,
+Round((standard_labor*tc),2) as Operating_Cost_including_dl_USD,
+Round((standard_OH*tc),2) as Indirect_Cost_including_OH__USD,
+Round((coalesce(sales*tc,0) + coalesce(discount_rebate*tc,0) + coalesce(Return_Tagging*tc,0)),2) as Sales_USD_w_discount,-- validar esta suma
+null as Sum_of_costs_adj,
+null as Raw_Material_USD_adj,
+null as Operating_Cost_including_Direct_Labor_USD_adj,
+null as Indirect_Cost_including_OH_USD_adj,
+discount_rebate as discount_rebate,
+Return_Tagging as return_tagging,
+round ((variation_rm*tc),2) as variation_rm,
+round ((variation_ro*tc),2) as variation_ro,
+round ((variation_rm*tc),2)+round ((variation_ro*tc),2) as total_var,
+Round((COALESCE(Standard_material*tc, 0) + COALESCE(standard_labor*tc, 0) + COALESCE(standard_OH*tc, 0)+(variation_rm*tc)+ (variation_ro*tc)),2) as final_total_costs
+from all_fields
+)
+--/* -- Input de Excel SKU y Clientes
+select distinct
+final_md_ppc.entity_code
+,intercompany_tagging
+--,sku
+,customer_id,customer_name
+,sum(final_md_ppc.Sales_USD_w_discount) as sales
+,round(sum(sum_of_costs_usd),2) as total_std
+,round(sum(total_var),2) as total_var
+ from final_md_ppc
+where date_trunc(transaction_date,month) between date('2022-07-01') and date('2023-03-01')
+group by 1,2,3
+order by 1,2,3
+--*/
+/* -- Scrap
+select distinct entity_code,sku,sku_description,product_class,Product_Type,primary_substrate,End_Market
+,case when lower(sku_description) like '%torta%' or lower(sku_description) like '%polvillo%' or lower(sku_description) like '%contaminado%' or lower(sku_description) like '%residuos%' then 'Scrap' 
+ when lower(sku_description) like 'retal%' then 'Retal' 
+ when lower(sku_description) like 'resid%' then 'Resid' else null end as scrap
+,sum(final_md_ppc.Sales_USD_w_discount) as sales
+from final_md_ppc
+group by 1,2,3,4,5,6,7
+order by 1,2,3,4,5,6,7
+
+*/
